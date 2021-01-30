@@ -144,13 +144,17 @@ class Operations
 
     public function uploadCart($customerName,$customerEmail,$customerPhone,
                             $foodName, $foodOptions,$foodQuantity,$foodPrice)
-        {
+    {
+
+        $customerIdentityNo = null;
+        $detailIdentityNo = null;
+        $foodIdentityNo = null;
+
 
         $customerIdQuery = "select id from customers where customer_name = ? 
                         and customer_email = ? and customer_phone_number = ?; ";
         $foodIdQuery = "select id from food where food_name=?";
-        $detailsQuery = "select id from food_details where food_id =? and 
-                                  food_sizes =? and food_prices=?";
+        $detailsQuery = "select id from food_details where food_id = ? and food_sizes =?";
 
 
         $customerIdStmt = $this->con->prepare($customerIdQuery);
@@ -158,18 +162,52 @@ class Operations
         $detailsStmt = $this->con->prepare($detailsQuery);
 
         $customerIdStmt->bind_param("sss",$customerName,$customerEmail,$customerPhone);
-        $foodIdStmt ->bind_param("s",$foodName);
-        $detailsStmt->bind_param("si",$foodOptions,$foodPrice);
-
-
-
+        $customerIdStmt->bind_result($customerId);
         if($customerIdStmt->execute()){
-            $customerIdStmt->bind_result($customerId);
             while ($customerIdStmt->fetch()){
-                echo($customerId);
+                $customerIdentityNo = $customerId;
             }
         }
 
+
+        $foodIdStmt ->bind_param("s",$foodName);
+        $foodIdStmt->bind_result($foodId);
+        if($foodIdStmt->execute()){
+            while ($foodIdStmt->fetch()){
+                $foodIdentityNo = $foodId;
+            }
+        }
+
+        $detailsStmt->bind_param("is",$foodIdentityNo,$foodOptions);
+        $detailsStmt->bind_result($detailsId);
+        if($detailsStmt->execute()){
+            while ($detailsStmt->fetch()){
+                $detailIdentityNo = $detailsId;
+            }
+        }
+
+        $returnedValue = $this->insertCartIntoDatabase($customerIdentityNo,$foodIdentityNo,$detailIdentityNo,
+            $foodQuantity,$foodPrice);
+
+       return $returnedValue;
+
+    }
+
+    private function insertCartIntoDatabase($customerIdentityNo,$foodIdentity,
+                                            $detailIdentityNo,$foodQuantity,$food_total_price){
+        $query = "insert into cart
+                            (customer_id, food_id, food_details_id, food_quantity, food_total_price)
+                            values(?,?,?,?,?);";
+
+        $stmt = $this->con->prepare($query);
+        $stmt->bind_param("iiiid",$customerIdentityNo,$foodIdentity,
+            $detailIdentityNo,$foodQuantity,$food_total_price);
+
+        if($stmt->execute()){
+            return 1;
+        }else{
+            return 2;
+        }
     }
 
     private function isUserExit($email)

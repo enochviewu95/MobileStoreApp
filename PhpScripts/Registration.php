@@ -6,13 +6,15 @@ $response = array();
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
     if(isset($_POST['full_name']) and isset($_POST['email'])
-        and isset($_POST['phone_number']) and isset($_POST['password'])){
+        and isset($_POST['phone_number']) and isset($_POST['password'])
+    and isset($_POST['birthday'])){
         $db = new Operations();
         $result = $db->registerUser(
             $_POST['full_name'],
             $_POST['email'],
             $_POST['phone_number'],
-            $_POST['password']
+            $_POST['password'],
+            $_POST['birthday']
         );
 
         if($result == 1){

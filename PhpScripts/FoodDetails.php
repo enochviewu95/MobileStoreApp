@@ -3,9 +3,9 @@ require_once "../PhpClasses/Operations.php";
 
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    if(isset($_POST['food_category_id'])){
+    if(isset($_POST['food_id'])){
         $db = new Operations();
-        $result = $db->getFoodDescription($_POST['food_category_id']);
+        $result = $db->getFoodDetails($_POST['food_id']);
 
         if($result != null){
             $response['error'] = false;

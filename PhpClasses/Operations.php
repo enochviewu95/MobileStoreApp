@@ -11,18 +11,24 @@ class Operations
         $this->con = $db->connect();
     }
 
-    public function registerUser($name,$email,$phone,$password){
+    public function registerUser($name,$email,$phone,$password,$birthday){
         if($this->isUserExit($email)){
             return 0;
         }else{
             $ePassword = md5($password);
-            $query = "insert into users
-                            (name,email,password,contact)
-                            values(?,?,?,?);";
+            $query = "insert into customers
+                            (customer_name, customer_email, customer_phone_number, customer_password, customer_birthday)
+                            values(?,?,?,?,?);";
 
+            try {
+                $dateOfBirth = new DateTime($birthday);
+                $birthday = $dateOfBirth->format('Y-m-d');
+            } catch (Exception $e) {
+
+            }
             $stmt = $this->con->prepare($query);
-            $stmt->bind_param("sssi",$name,$email,
-                $ePassword,$phone);
+            $stmt->bind_param("sssss",$name,$email,
+                $phone,$ePassword,$birthday);
 
             if($stmt->execute()){
                 return 1;
@@ -35,11 +41,14 @@ class Operations
     public function login($email,$password){
 
         $ePassword = md5($password);
-        $query = "select id, name, email, contact from users where email=? and password=?";
+        $query = "select id, customer_name,customer_email, customer_phone_number,
+                        customer_birthday,customer_image_url,customer_location
+                         from customers where customer_email=? and customer_password=?";
         $stmt = $this->con->prepare($query);
         $stmt->bind_param("ss",$email,$ePassword);
         if($stmt->execute()){
-            $stmt->bind_result($id,$dFullname,$dEmail,$dContact);
+            $stmt->bind_result($id,$dFullname,$dEmail,$dContact,$dBirthDate,
+                $dCustomerImage,$dCustomerLocation);
             $temp=array();
             while($stmt->fetch()){
 
@@ -47,6 +56,9 @@ class Operations
                 $temp['full_name'] = $dFullname;
                 $temp['email'] = $dEmail;
                 $temp['contact']=$dContact;
+                $temp['birth_date'] = $dBirthDate;
+                $temp['customer_image_url'] = $dCustomerImage;
+                $temp['customer_location'] = $dCustomerLocation;
             }
 
 
@@ -56,22 +68,45 @@ class Operations
         return null;
     }
 
-    public function getFoodDescription(){
-        $query = "select * from items; ";
+    public function getFoodCategory(){
+        $query = "Select * from food_category;";
         $stmt = $this->con->prepare($query);
         if($stmt->execute()){
-            $stmt->bind_result($id,$imageurl,$rating,$name,$store_location_name,$price);
-            $foodDescription = array();
+            $stmt->bind_result($id, $categoryName,$categoryImageUrl);
+            $categoryList = array();
+            $listOfCategories = array();
+            $i = 0;
+            while($stmt->fetch()){
+                $categoryList['id'] = $id;
+                $categoryList['category_name'] = $categoryName;
+                $categoryList['category_image_url'] = $categoryImageUrl;
+                $listOfCategories[$i] = $categoryList;
+                $i++;
+            }
+
+            return $listOfCategories;
+        }
+    }
+
+
+    public function getFoodDescription($categoryID){
+        $query = "select * from food where food_category_id = ?; ";
+        $stmt = $this->con->prepare($query);
+        $stmt->bind_param("i",$categoryID);
+        if($stmt->execute()){
+            $stmt->bind_result($id,$foodName,$foodImageUrl,$foodRating,
+                $foodDescription,$foodCategoryID);
+            $foodList = array();
             $listOfFoodDescription = array();
             $i = 0;
             while($stmt->fetch()){
-                $foodDescription['food_id'] = $id;
-                $foodDescription['food_image_url']=$imageurl;
-                $foodDescription['food_rating'] = $rating;
-                $foodDescription['food_name'] = $name;
-                $foodDescription['store_details_id'] = $store_location_name;
-                $foodDescription['food_price'] =$price;
-                $listOfFoodDescription[$i] = $foodDescription;
+                $foodList['food_id'] = $id;
+                $foodList['food_name']=$foodName;
+                $foodList['food_image_url'] = $foodImageUrl;
+                $foodList['food_rating'] = $foodRating;
+                $foodList['food_description'] = $foodDescription;
+                $foodList['food_category_id'] =$foodCategoryID;
+                $listOfFoodDescription[$i] = $foodList;
                 $i++;
             }
 
@@ -81,9 +116,65 @@ class Operations
         return null;
     }
 
+    public function getFoodDetails($foodId){
+        $query = "select * from food_details where food_id = ?;";
+        $stmt = $this->con->prepare($query);
+        $stmt->bind_param("i",$foodId);
+
+        if($stmt->execute()){
+            $stmt->bind_result($foodDetailsId,$foodDetailsPrice,$foodDetailsSizes,
+                $foodDetailsFoodId);
+            $foodDetails = array();
+            $foodDetailsList = array();
+            $i = 0;
+            while ($stmt->fetch()){
+                $foodDetails['id'] = $foodDetailsId;
+                $foodDetails['food_prices'] = $foodDetailsPrice;
+                $foodDetails['food_sizes'] = $foodDetailsSizes;
+                $foodDetails['food_id'] = $foodDetailsFoodId;
+                $foodDetailsList[$i] = $foodDetails;
+                $i++;
+            }
+
+            return $foodDetailsList;
+        }
+
+        return null;
+    }
+
+    public function uploadCart($customerName,$customerEmail,$customerPhone,
+                            $foodName, $foodOptions,$foodQuantity,$foodPrice)
+        {
+
+        $customerIdQuery = "select id from customers where customer_name = ? 
+                        and customer_email = ? and customer_phone_number = ?; ";
+        $foodIdQuery = "select id from food where food_name=?";
+        $detailsQuery = "select id from food_details where food_id =? and 
+                                  food_sizes =? and food_prices=?";
+
+
+        $customerIdStmt = $this->con->prepare($customerIdQuery);
+        $foodIdStmt = $this->con->prepare($foodIdQuery);
+        $detailsStmt = $this->con->prepare($detailsQuery);
+
+        $customerIdStmt->bind_param("sss",$customerName,$customerEmail,$customerPhone);
+        $foodIdStmt ->bind_param("s",$foodName);
+        $detailsStmt->bind_param("si",$foodOptions,$foodPrice);
+
+
+
+        if($customerIdStmt->execute()){
+            $customerIdStmt->bind_result($customerId);
+            while ($customerIdStmt->fetch()){
+                echo($customerId);
+            }
+        }
+
+    }
+
     private function isUserExit($email)
     {
-        $query = "select id from users where email = ?";
+        $query = "select id from customers where customer_email = ?";
         $stmt = $this->con->prepare($query);
         $stmt->bind_param("s",$email);
         $stmt->execute();

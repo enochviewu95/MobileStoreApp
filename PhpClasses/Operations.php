@@ -219,4 +219,9 @@ class Operations
         $stmt->store_result();
         return $stmt->num_rows > 0;
     }
+
+
+    private function userProfileUpdate(){
+        //TODO: update the user profile
+    }
 }
